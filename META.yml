@@ -1,0 +1,29 @@
+abstract: ~
+build_requires: 
+  Test::Exception: 0
+  Test::More: 0
+  Test::use::ok: 0
+distribution_type: module
+generated_by: Module::Install version 0.64
+license: MIT
+name: Crypt-Util
+no_index: 
+  directory: 
+    - inc
+    - t
+recommends: 
+  Crypt::Blowfish: 0
+  Crypt::CBC: 0
+  Crypt::CFB: 0
+  Crypt::Rijndael: 0
+  Crypt::Twofish: 0
+  Digest::MD5: 0
+  Digest::SHA1: 0
+  Digest::SHA2: 0
+  Digest::Whirlpool: 0
+requires: 
+  Class::ACcessor::Fast: 0
+  Digest: 0
+  Storable: 0
+  Sub::Exporter: 0
+version: 0.01_01

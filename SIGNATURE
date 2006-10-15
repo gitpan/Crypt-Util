@@ -1,0 +1,46 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.55.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 40276ee47250d136af7612300a0732e7f0efecac MANIFEST
+SHA1 f855f51f1aade527dc5dabe46adc6f7819790abf META.yml
+SHA1 1ed0e2c0a2b555e4270b6eeb1c5e3b2c8e4abe08 Makefile
+SHA1 269b72e6337bec61a418f6bb85ada5e1a8883823 Makefile.PL
+SHA1 9b2f9d83bcf77860f53a0c07c90a4a59ad9f5df1 inc/Module/Install.pm
+SHA1 abe32855d75ab13747cf65765af9947b7a8c3057 inc/Module/Install/Base.pm
+SHA1 95b81d1e91bd634467bf633571eff4420e9c04eb inc/Module/Install/Can.pm
+SHA1 1fe98c63cf9d7271c8cb4183ba230f152df69e26 inc/Module/Install/Fetch.pm
+SHA1 2249171a2b72cd73ff2c0a06597d29f86e5df456 inc/Module/Install/Makefile.pm
+SHA1 381bb98ea3877bba49ae85e7a7ea130645fd3dbf inc/Module/Install/Metadata.pm
+SHA1 0c2118868ef82ac517eb6d9c3bd93e6eb9bbf83e inc/Module/Install/Win32.pm
+SHA1 e827d6d43771032fa3df35c0ad5e5698d0e54cda inc/Module/Install/WriteAll.pm
+SHA1 4034f822ada5cf65df4e5450abe7f6bd62a7d487 lib/Crypt/Util.pm
+SHA1 a9040821e7718e782d337c778ffad65091b34d69 lib/Crypt/Util.pmc
+SHA1 543a9f5a57f8d1d1be830aea3954d3de684c0106 lib/Digest/MultiHash.pm
+SHA1 da39a3ee5e6b4b0d3255bfef95601890afd80709 pm_to_blib
+SHA1 bb28616e6774ede46a280c1e334d74a35f562e6c t/basic.t
+SHA1 6ff462434cae7dfab28c187badfd3d3f380875db t/digest.t
+SHA1 bc886198f5871eff081e1c172531979ff686ed3c t/encoding.t
+SHA1 906f4a2d2884084091a33c9709a7830ef0ef2713 t/encrypt.t
+SHA1 97bd175df87eee55e698529a9b1134f700280f46 t/exported.t
+SHA1 66fc7476ae1eb4f9807e4497ae6950b46414b1fb t/multihash.t
+SHA1 632412bb956b62899507624629e64a0aa3fba118 t/tamper.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.5 (Darwin)
+
+iD8DBQFFMq7tVCwRwOvSdBgRAgg2AJ9XRb6ag3Y316yWNo8UrBgknCm7qwCdHHeX
+cSulWSr3BD4c9fiOpsTqj1U=
+=pE0v
+-----END PGP SIGNATURE-----
