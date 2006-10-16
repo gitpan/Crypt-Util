@@ -1,3 +1,4 @@
+Changes
 inc/Module/Install.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
@@ -7,13 +8,12 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Crypt/Util.pm
-lib/Crypt/Util.pmc
+lib/Digest/MoreFallbacks.pm
 lib/Digest/MultiHash.pm
-Makefile
 Makefile.PL
 MANIFEST			This list of files
+MANIFEST.SKIP
 META.yml
-pm_to_blib
 t/basic.t
 t/digest.t
 t/encoding.t

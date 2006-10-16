@@ -7,12 +7,11 @@ use warnings;
 
 use base qw/Class::Accessor::Fast/;
 
-our $VERSION = "0.01_01";
+our $VERSION = "0.01_02";
 
 use Digest;
 use Storable;
-
-$Digest::MMAP{"RIPEMD160"} ||= $Digest::MMAP{"RIPEMD-160"} ||="Crypt::RIPEMD160";
+use Digest::MoreFallbacks;
 
 use Carp qw/croak/;
 
@@ -90,8 +89,8 @@ our %FALLBACK_LISTS = (
 	mode                    => [qw/CFB CBC Ctr OFB/],
 	stream_mode             => [qw/CFB Ctr OFB/],
 	block_mode              => [qw/CBC/],
-	cipher                  => [qw/Rijndael Twofish Blowfish IDEA RC6 RC5/],
-	digest                  => [qw/SHA1 SHA256 RIPEMD160 Whirlpool MD5 Haval256/],
+	cipher                  => [qw/Rijndael Serpent Twofish Blowfish RC6 RC5/],
+	digest                  => [qw/SHA-1 SHA-256 RIPEMD160 Whirlpool MD5 Haval256/],
 	encoding                => [qw/hex/],
 	printable_encoding      => [qw/base64 hex/],
 	alphanumerical_encoding => [qw/base32 hex/],
@@ -351,7 +350,7 @@ sub process_key {
 			encode => 0,
 			digest_args => [{
 				width  => $size,
-				hashes => [ $self->fallback_digest_list ],
+				hashes => ["SHA-512"], # no need to be overkill, we just need the variable width
 			}],
 		);
 	}
@@ -657,7 +656,7 @@ __END__
 
 =head1 NAME
 
-Crypto::Util - A lightweight Crypt/Digest convenience API
+Crypt::Util - A lightweight Crypt/Digest convenience API
 
 =head1 SYNOPSIS
 
@@ -926,6 +925,41 @@ qw/SHA1 RIPEMD-160 Whirlpool MD5/
 
 =back
 
+=head1 SEE ALSO
+
+L<Digest>, L<Crypt::CBC>, L<Crypt::CFB>,
+Lhttp://en.wikipedia.org/wiki/Block_cipher_modes_of_operation>.
+
+=head1 VERSION CONTROL
+
+This module is maintained using Darcs. You can get the latest version from
+L<http://nothingmuch.woobling.org/Crypt-Util/>, and use C<darcs send> to commit
+changes.
+
+=head1 AUTHORS
+
+Yuval Kogman, E<lt>nothingmuch@woobling.orgE<gt>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2006 by Yuval Kogman E<lt>nothingmuch@woobling.orgE<gt>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
 =cut
-
-

@@ -1,4 +1,5 @@
-abstract: ~
+abstract: A lightweight Crypt/Digest convenience API
+author: Yuval Kogman, <nothingmuch@woobling.org>
 build_requires: 
   Test::Exception: 0
   Test::More: 0
@@ -15,15 +16,17 @@ recommends:
   Crypt::Blowfish: 0
   Crypt::CBC: 0
   Crypt::CFB: 0
+  Crypt::DES: 0
+  Crypt::RC6: 0
+  Crypt::RIPEMD160: 0
   Crypt::Rijndael: 0
+  Crypt::Serpent: 0
   Crypt::Twofish: 0
   Digest::MD5: 0
-  Digest::SHA1: 0
-  Digest::SHA2: 0
   Digest::Whirlpool: 0
 requires: 
-  Class::ACcessor::Fast: 0
+  Class::Accessor::Fast: 0
   Digest: 0
   Storable: 0
   Sub::Exporter: 0
-version: 0.01_01
+version: 0.01_02
