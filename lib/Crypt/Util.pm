@@ -7,10 +7,9 @@ use warnings;
 
 use base qw/Class::Accessor::Fast/;
 
-our $VERSION = "0.01_02";
+our $VERSION = "0.01_03";
 
 use Digest;
-use Storable;
 use Digest::MoreFallbacks;
 
 use Carp qw/croak/;
@@ -40,10 +39,12 @@ BEGIN {
 		encoding
 		digest
 		cipher
+		mac
 		key
-		default_uri_encoding
-		default_printable_encoding
+		uri_encoding
+		printable_encoding
 		use_literal_key
+		tamper_protect_unencrypted
 	/;
 
 	__PACKAGE__->mk_accessors( map { "default_$_" } @DEFAULT_ACCESSORS );
@@ -91,6 +92,7 @@ our %FALLBACK_LISTS = (
 	block_mode              => [qw/CBC/],
 	cipher                  => [qw/Rijndael Serpent Twofish Blowfish RC6 RC5/],
 	digest                  => [qw/SHA-1 SHA-256 RIPEMD160 Whirlpool MD5 Haval256/],
+	mac                     => [qw/HMAC/],
 	encoding                => [qw/hex/],
 	printable_encoding      => [qw/base64 hex/],
 	alphanumerical_encoding => [qw/base32 hex/],
@@ -131,12 +133,12 @@ foreach my $fallback ( keys %FALLBACK_LISTS ) {
 
 {
 	my %fallback_caches;
-	
+
 	sub _find_fallback {
 		my ( $self, $key, $test, @list ) = @_;
 
 		my $cache = $fallback_caches{$key} ||= {};
-	
+
 		@list = $list[0] if @list and $self->disable_fallback;
 
 		foreach my $elem ( @list ) {
@@ -150,15 +152,7 @@ foreach my $fallback ( keys %FALLBACK_LISTS ) {
 
 sub _try_cipher_fallback {
 	my ( $self, $name ) = @_;
-
-	( my $file = "Crypt::${name}.pm" ) =~ s{::}{/}g;
-
-	local $@;
-	eval { require $file }; # yes it's portable
-	
-	return 1 if !$@;
-	die $@ if $@ !~ /^(?:Can|Could)(?: not|n't) (?:instantiate|load|locate) Crypt(?:::$name)?/i;
-	return;
+	$self->_try_loading_module("Crypt::$name");
 }
 
 sub _try_digest_fallback {
@@ -175,8 +169,18 @@ sub _try_digest_fallback {
 
 sub _try_mode_fallback {
 	my ( $self, $mode ) = @_;
+	$self->_try_loading_module("Crypt::$mode");
+}
 
-	(my $file = "Crypt::${mode}.pm") =~ s{::}{/}g;
+sub _try_mac_fallback {
+	my ( $self, $mac ) = @_;
+	$self->_try_loading_module("Digest::$mac");
+}
+
+sub _try_loading_module {
+	my ( $self, $name ) = @_;
+
+	(my $file = "${name}.pm") =~ s{::}{/}g;
 
 	local $@;
 	eval { require $file }; # yes it's portable
@@ -195,10 +199,10 @@ sub _try_mode_fallback {
 	);
 
 	sub _try_encoding_fallback {
-		my ( $self, $encoding ) = @_;	
+		my ( $self, $encoding ) = @_;
 
 		return 1 if $encoding eq "hex";
-		
+
 		my $module = $encoding_module{$encoding};
 		$module =~ s{::}{/}g;
 		$module .= ".pm";
@@ -257,7 +261,7 @@ sub _process_param {
 
 sub cipher_object {
 	my ( $self, %params ) = _args @_;
-	
+
 	$self->_process_params( \%params, qw/mode/);
 
 	my $method = "cipher_object_" . lc(delete $params{mode});
@@ -311,7 +315,7 @@ sub _cipher_object_baurem {
 	my ( $self, $class, %params ) = @_;
 
 	my $prefix = "Crypt";
-	( $prefix, $params{cipher} ) = ( Digest => delete $params{digest} ) if exists $params{digest};
+	( $prefix, $params{cipher} ) = ( Digest => delete $params{digest} ) if exists $params{encryption_digest};
 
 	$self->_process_params( \%params, qw/cipher/ );
 
@@ -335,14 +339,18 @@ sub process_key {
 		$self->_process_params( \%params, qw/key/ );
 		return $params{key};
 	} else {
-		$self->_process_params( \%params, qw/key cipher/ );
-		my $cipher = $params{cipher};
+		my $size = $params{key_size};
 
-		my $class = "Crypt::$cipher";
-		my $size_method = $class->can("keysize") || $class->can("blocksize");
-		my $size = $class->$size_method;
+		unless ( $size ) {
+			$self->_process_params( \%params, qw/key cipher/ );
+			my $cipher = $params{cipher};
 
-		$size ||= $cipher eq "Blowfish" ? 56 : 32;
+			my $class = "Crypt::$cipher";
+			my $size_method = $class->can("keysize") || $class->can("blocksize");
+			$size = $class->$size_method;
+
+			$size ||= $cipher eq "Blowfish" ? 56 : 32;
+		}
 
 		return $self->digest_string(
 			string => $params{key},
@@ -364,6 +372,58 @@ sub digest_object {
 	/);
 
 	Digest->new( $params{digest}, @{ $params{digest_args} || [] } );
+}
+
+{
+	# this is a hack that gives to Digest::HMAC something that responds to ->new
+
+	package
+	Crypt::Util::HMACDigestFactory;
+
+	sub new {
+		my $self = shift;
+		$$self->clone;
+	}
+
+	sub new_factory {
+		my ( $self, $thing ) = @_;
+		return bless \$thing, $self;
+	}
+}
+
+sub mac_object {
+	my ( $self, %params ) = _args @_;
+
+	$self->_process_params( \%params, qw/
+		mac
+	/);
+
+	my $mac_type = delete $params{mac};
+
+	my $method = lc( "mac_object_$mac_type" );
+
+	$self->$method( %params );
+}
+
+sub mac_object_hmac {
+	my ( $self, @args ) = _args @_;
+
+	my $digest = $self->digest_object(@args);
+
+	my $digest_factory = Crypt::Util::HMACDigestFactory->new_factory( $digest );
+
+	my $key = $self->process_key(
+		literal_key => 1, # Digest::HMAC does it's own key processing, but we let the user force our own
+		key_size => 64,   # if the user did force our own, the default key_size is Digest::HMAC's default block size
+		@args,
+	);
+
+	require Digest::HMAC;
+	Digest::HMAC->new(
+		$key,
+		$digest_factory,
+		# FIXME hmac_block_size param?
+	);
 }
 
 use tt;
@@ -402,27 +462,43 @@ sub _maybe_[% f %]code {
 [% END %]
 no tt;
 
-sub digest_string {
-	my ( $self, %params ) = _args @_, "string";
+sub _digest_string_with_object {
+	my ( $self, $object, %params ) = @_;
 
 	my $string = delete $params{string};
 	croak "You must provide the 'string' parameter" unless defined $string;
 
-	my $d = $self->digest_object( %params );
+	$object->add($string);
 
-	$d->add($string);
-
-	$self->_maybe_encode( $d->digest, \%params );
+	$self->_maybe_encode( $object->digest, \%params );
 }
 
-sub verify_hash {
+sub digest_string {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $d = $self->digest_object( %params );
+
+	$self->_digest_string_with_object( $d, %params );
+}
+
+sub mac_digest_string {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $d = $self->mac_object( %params );
+
+	$self->_digest_string_with_object( $d, %params );
+}
+
+sub _do_verify_hash {
 	my ( $self, %params ) = _args @_;
 
 	my $hash = delete $params{hash};
 	my $fatal = delete $params{fatal};
 	croak "You must provide the 'string' and 'hash' parameters" unless defined $params{string} and defined $hash;
 
-	return 1 if $hash eq $self->digest_string( %params );
+	my $meth = $params{digest_method};
+
+	return 1 if $hash eq $self->$meth(%params);
 
 	if ( $fatal ) {
 		croak "Digest verification failed";
@@ -431,13 +507,58 @@ sub verify_hash {
 	}
 }
 
+sub verify_hash {
+	my ( $self, @args ) = @_;
+	$self->_do_verify_hash(@args, digest_method => "digest_string");
+}
+
 sub verify_digest {
 	my ( $self, @args ) = @_;
 	$self->verify_hash(@args);
 }
 
-my @flags = qw/storable/;
+sub verify_mac {
+	my ( $self, @args ) = @_;
+	$self->_do_verify_hash(@args, digest_method => "mac_digest_string");
+}
+
+{
+	my @flags = qw/storable/;
+
+	sub _flag_hash_to_int {
+		my ( $self, $flags ) = @_;
+
+		my $bit = 1;
+		my $flags_int = 0;
+
+		foreach my $flag (@flags) {
+			$flags_int |= $bit if $flags->{$flag};
+		} continue {
+			$bit *= 2;
+		}
+
+		return $flags_int;
+	}
+
+	sub _flag_int_to_hash {
+		my ( $self, $flags ) = @_;
+
+		my $bit =1;
+		my %flags;
+
+		foreach my $flag (@flags ) {
+			$flags{$flag} = $flags & $bit;
+		} continue {
+			$bit *= 2;
+		}
+
+		return wantarray ? %flags : \%flags;
+	}
+}
+
 our $TAMPER_PROTECT_VERSION = 1;
+
+# YECHHH RENAME THE UNIVERSE IT"S SO UGLY
 
 sub tamper_protected {
 	my ( $self, %params ) = _args @_, "data";
@@ -452,52 +573,153 @@ sub tamper_protected {
 
 	if ( ref $data ) {
 		$flags{storable} = 1;
+		require Storable;
 		$data = Storable::nfreeze($data);
 	}
 
-	my $flags = $self->_flag_hash_to_int(%flags);
+	my $packed = $self->_pack_version_flags_and_string( $TAMPER_PROTECT_VERSION, \%flags, $data );
 
-	my $packed = pack("n n N/a*", $TAMPER_PROTECT_VERSION, $flags, $data );
+	$self->tamper_protected_string( %params, string => $packed );
+}
 
-	# FIXME HMAC etc here
+sub tamper_protected_string {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $encrypted = exists $params{encrypt}
+		? $params{encrypt}
+		: !$self->default_tamper_protect_unencrypted;
+
+	if ( $encrypted ) {
+		$self->_process_params( \%params, qw/
+			mode
+		/);
+
+		if ( lc($params{mode}) eq "ocb" ) {
+			my $ciphertext = $self->ocb_tamper_protected_string( %params );
+			$self->_pack_hash_and_message( ocb => $ciphertext );
+		} else {
+			my $ciphertext = $self->encrypt_and_digest_tamper_protected_string( %params );
+			return $self->_pack_tamper_protected( encrypted => $ciphertext );
+		}
+	} else {
+		my $signed = $self->mac_tamper_protected_string( %params );
+		$self->_pack_tamper_protected( mac => $signed );
+	}
+}
+
+{
+	my @tamper_proof_types = qw/encrypted mac ocb/;
+	my %tamper_proof_type; @tamper_proof_type{@tamper_proof_types} = 1 .. @tamper_proof_types;
+
+	sub _pack_tamper_protected {
+		my ( $self, $type, $protected ) = @_;
+		pack("C a*", $tamper_proof_type{$type}, $protected);
+	}
+
+	sub _unpack_tamper_protected {
+		my ( $self, $packed ) = @_;
+		my ( $type, $string ) = unpack("C a*", $packed);
+
+		return (
+			($tamper_proof_types[ $type-1 ] || croak "Unknown tamper protection type"),
+			$string,
+		);
+	}
+}
+
+sub _pack_hash_and_message {
+	my ( $self, $hash, $message ) = @_;
+	pack("n/a* a*", $hash, $message);
+}
+
+sub _unpack_hash_and_message {
+	my ( $self, $packed ) = @_;
+	unpack("n/a* a*", $packed);
+}
+
+sub _pack_version_flags_and_string {
+	my ( $self, $version, $flags, $string ) = @_;
+	pack("n n N/a*", $version, $self->_flag_hash_to_int($flags), $string);
+}
+
+sub _unpack_version_flags_and_string {
+	my ( $self, $packed ) = @_;
+
+	my ( $version, $flags, $string ) = unpack("n n N/a*", $packed);
+
+	$flags = $self->_flag_int_to_hash($flags);
+
+	return ( $version, $flags, $string );
+}
+
+sub ocb_tamper_protected_string {
+	my ( $self, %params ) = _args @_, "string";
+	return $self->encrypt_string( %params, mode => "ocb" );
+}
+
+sub encrypt_and_digest_tamper_protected_string {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $string = delete $params{string};
+	croak "You must provide the 'string' parameter" unless defined $string;
 
 	my $hash = $self->digest_string(
 		%params,
 		encode => 0,
-		string => $packed,
+		string => $string,
 	);
 
 	return $self->encrypt_string(
 		%params,
-		string => pack("n/a* a*", $hash, $packed),
+		string => $self->_pack_hash_and_message( $hash, $string ),
 	);
 }
 
-sub _flag_hash_to_int {
-	my ( $self, %flags ) = @_;
+sub mac_tamper_protected_string {
+	my ( $self, %params ) = _args @_, "string";
 
-	my $bit = 1;
-	my $flags = 0;
+	my $string = delete $params{string};
+	croak "You must provide the 'string' parameter" unless defined $string;
 
-	foreach my $flag (@flags) {
-		$flags |= $bit if $flags{$flag};
-	} continue {
-		$bit *= 2;	
-	}
+	my $hash = $self->mac_digest_string(
+		%params,
+		encode => 0,
+		string => $string,
+	);
 
-	return $flags;
+	return $self->_pack_hash_and_message( $hash, $string );
 }
 
 sub thaw_tamper_protected {
 	my ( $self, %params ) = _args @_, "string";
 
-	my $hashed_packed = $self->decrypt_string( %params );
+	my $string = delete $params{string};
+	croak "You must provide the 'string' parameter" unless defined $string;
 
-	my ( $hash, $version, $flags, $packed ) = unpack("n/a n n X[n n] a*", $hashed_packed);
+	my ( $type, $message ) = $self->_unpack_tamper_protected($string);
+
+	my $method = "thaw_tamper_protected_string_$type";
+
+	my $packed = $self->$method( %params, string => $message );
+
+	my ( $version, $flags, $data ) = $self->_unpack_version_flags_and_string($packed);
 
 	$self->_tamper_protect_version_check( $version );
 
-	my %flags = $self->_flag_int_to_hash($flags);
+	if ( $flags->{storable} ) {
+		require Storable;
+		return Storable::thaw($data);
+	} else {
+		return $data;
+	}
+}
+
+sub thaw_tamper_protected_string_encrypted {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $hashed_packed = $self->decrypt_string( %params );
+
+	my ( $hash, $packed ) = $self->_unpack_hash_and_message( $hashed_packed );
 
 	return unless $self->verify_hash(
 		fatal  => 1,
@@ -507,11 +729,26 @@ sub thaw_tamper_protected {
 		string => $packed,
 	);
 
-	my $data = unpack("x[n n] N/a*", $packed);
+	return $packed;
+}
 
-	return $flags{storable}
-		? Storable::thaw($data)
-		: $data;
+sub thaw_tamper_protected_string_mac {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $hashed_packed = delete $params{string};
+	croak "You must provide the 'string' parameter" unless defined $hashed_packed;
+
+	my ( $hash, $packed ) = $self->_unpack_hash_and_message( $hashed_packed );
+
+	return unless $self->verify_mac(
+		fatal  => 1,
+		%params,
+		hash   => $hash,
+		decode => 0,
+		string => $packed,
+	);
+
+	return $packed;
 }
 
 sub tamper_unprotected {
@@ -524,21 +761,6 @@ sub _tamper_protect_version_check {
 
 	croak "Incompatible tamper protected string (I'm version $TAMPER_PROTECT_VERSION, thawing version $version)"
 		unless $version == $TAMPER_PROTECT_VERSION;
-}
-
-sub _flag_int_to_hash {
-	my ( $self, $flags ) = @_;
-
-	my $bit =1;
-	my %flags;
-
-	foreach my $flag (@flags ) {
-		$flags{$flag} = $flags & $bit;
-	} continue {
-		$bit *= 2;
-	}
-
-	return wantarray ? %flags : \%flags;
 }
 
 use tt
@@ -667,71 +889,38 @@ Crypt::Util - A lightweight Crypt/Digest convenience API
 	$util->default_key("my secret");
 
 	# MAC or cipher+digest based tamper resistent encapsulation
+	# (uses Storable on $data if necessary)
+	my $tamper_resistent_string = $util->tamper_protected( $data );
 
-	my $tamper_resistent_string = $util->tamper_protected( $data ); # can also take refs
+	my $verified = $util->thaw_tamper_protected( $untrusted_string, key => "another secret" );
 
-	my $trusted = $util->thaw_tamper_protected( $untrusted_string, key => "another secret" );
-
-	# without specifying which encoding returns base32 or hex if base32 is unavailable
+	# If the encoding is unspecified, base32 is used
+	# (hex if base32 is unavailable)
 	my $encoded = $util->encode_string( $bytes );
 
 	my $hash = $util->digest( $bytes, digest => "md5" );
 
 	die "baaaad" unless $util->verify_hash(
-		hash => $hash,
-		data => $bytes,
+		hash   => $hash,
+		data   => $bytes,
 		digest => "md5",
 	);
 
-=head1 ACHTUNG!
-
-This is a sloppy release. By 0.01 the docs should be in place, as well as some
-more features I want in. As the saying goes, release prematurely, cry often.
 
 =head1 DESCRIPTION
 
-This module provides an easy, intuitive and forgiving API for weilding
+This module provides an easy, intuitive and forgiving API for wielding
 crypto-fu.
 
-Features which are currently missing but are scheduled for 0.01:
-
-=over 4
-
-=item *
-
-xMAC support
-
-=item *
-
-Crypt::SaltedHash support
-
-=item *
-
-Bruce Schneier Fact Database L<http://geekz.co.uk/lovesraymond/archive/bruce-schneier-facts>
-
-=item *
-
-Entropy fetching (get N weak/strong bytes, etc) from e.g. OpenSSL bindings,
-/dev/*random, and EGD.
-
-=item *
-
-Pipelined encrypting/digesting... Currently all the methods are named
-foo_string. In the future, a foo variant that auto DWIMs will be added, and a
-foo_stream, foo_handle, foo_callbacks api will be layered over a simple push
-API (like Crypt::CBC).
-
-=back
-
-=head1 PRIORITIES
+=head2 Priorities
 
 =over 4
 
 =item Ease of use
 
-Usability patches are very welcome - this is supposed to be an easy api for
-random people to be able to easily (but responsibly) use the more low level
-Crypt:: and Digest:: modules on the CPAN.
+This module is designed to have an easy API to allow easy but responsible
+use of the more low level Crypt:: and Digest:: modules on CPAN.  Therefore,
+patches to improve ease-of-use are very welcome.
 
 =item Pluggability
 
@@ -745,181 +934,391 @@ To ensure predictable behavior the fallback behavior can be disabled as necessar
 
 =back
 
+=head2 Interoperability
+
+To ensure that your hashes and strings are compatible with L<Crypt::Util>
+deployments on other machines (where different Crypt/Digest modules are
+available, etc) you should use C<disable_fallback>.
+
+Then either set the default ciphers, or always explicitly state the cipher.
+
+If you are only encrypting and decrypting with the same installation, and new
+cryptographic modules are not being installed, the hashes/ciphertexts should be
+compatible without disabling fallback.
+
 =head1 METHODS
+
+
+# FIXME
+# missing:
+# process_key, default_mode, fallback_mode, fallback_mode_list
+=over 4
+
+=item tamper_protected( [ $data ], %params )
+
+# DESCRIBE
+
+=item thaw_tamper_protected( [ $string ], %params )
+
+# DESCRIBE
+
+=item tamper_unprotected( [ $string ], %params )
+
+This method accepts the following parameters:
 
 =over 4
 
-=item tamper_protected [ $data ] %params
+=item * data
 
-=item thaw_tamper_protected [ $string ] %params
+The data to encrypt. If this is a reference L<Storable> will be used to serialize the data.
 
-=item tamper_unprotected [ $string ] %params
+=item * encrypt
 
-params: data => $anything, encrypt => bool || alg (defaults to true, false means just hmac), key (encrypt_string), digest => bool || alg, encode => bool || alg (defaults to true/"uri", see encode string), fatal => bool (defaults to true, turning it off will return undef on failure instead of dying)
+Not yet implemented.
 
-with odd args the first is treated as data
+By default this parameter is true, unless C<default_tamper_protect_unencrypted()>,
+has been enabled.
 
-implicitly storables data if it's a ref
+A true value implies that all the parameters
+which are available to C<encrypt_string()> are also available.  If a
+negative value is specified, MAC mode is used, and the additional
+parameters of C<mac_string()> may also be specified to this method.,
 
-=item encrypt_string [ $string ] %params
+=back
 
-=item decrypt_string [ $string ] %params
+=item encrypt_string( [ $string ], %params )
 
-encode => bool || alg (defaults to false), encrypt => bool || alg, key (defaults to server_key)
+All of the parameters which may be supplied to C<process_key()> are
+also available to this method.
 
-with odd args the firstr is treated as the string
+=item decrypt_string( [ $string ], %params )
 
-=item cipher_object %params
+The following parameters may be used:
 
-params: cipher, key
+=over 4
 
-Return an object using L<Crypt::CBC>
+=item * encode
 
-=item digest_string [ $string ] %params
+Boolean.  The default value is false.
 
-digest => alg
+=item * encoding
 
-with odd args the firstr is treated as the string
+alg.
 
-=item verify_digest
+=item * key
 
-hash => string (the hash to verify), string => string (the digested string), all params of digest_string, fatal => bool (defaults to false)
+The default value is I<server_key>.
 
-just calls digest_string and then eq
+=item * mode
 
-=item digest_object %params
+# Describe
+
+=item * string
+
+The string to be decrypt can either be supplied first, creating an odd
+number of arguments, or as a named parameter.
+
+=back
+
+
+=item process_key( $key, %params )
+
+The following arguments may be specified:
+
+=over 4
+
+=item * literal_key
+
+This disables mungung.
+
+=item * key_size
+
+Can be used to force a key size, even if the cipher specifies another size.
+
+=item * cipher
+
+Used to determine the key size.
+
+=back
+
+
+=item cipher_object( %params )
+
+Available parameters are:
+
+=over 4
+
+=item * cipher
+
+# Description.
+
+=item * mode
+
+# Description.
+
+=back
+
+Return an object using L<Crypt::CBC>.
+
+=item digest_string( [ $string ], %params )
+
+The following arguments are available:
+
+=over 4
+
+=item * digest
+
+alg.
+
+=item * string
+
+The string to be digested can either be supplied first, creating an odd
+number of arguments, or as a named parameter.
+
+=back
+
+
+=item verify_digest( %params )
+
+The following parameters are accepted:
+
+=over 4
+
+=item * hash
+
+A string containing the hash to verify.
+
+=item * string
+
+The digested string.
+
+=item * fatal
+
+If true, errors will be fatal.  The default is false, which means that
+failures will return undef.
+
+=back
+
+In addition, the parameters which can be supplied to C<digest_string()>
+may also be supplied to this method.
+
+=item digest_object( %params )
 
 params: digest
 
-Returns an object using L<Digest>
+Returns an object using L<Digest>.
 
-=item encode_string [ $string ] %params
+=item encode_string( [ $string ], %params )
 
-=item decode_string [ $string ] %params
+=item decode_string( [ $string ], %params )
 
-encoding => symbolic type (uri, printable) or concrete type (none, hex, base64, base32)
+The following parameters are accepted:
 
-=item mac_digest_string [ $string ] %params
+=over 4
 
-=item verify_mac %params
+=item * encoding
+
+The encoding may be a symbolic type (uri, printable) or a concrete type
+(none, hex, base64, base32).
+
+=back
+
+=item mac_digest_string( [ $string ], %param )
+
+=item verify_mac( %params )
 
 XXX emac, hmac, etc wrapper?
 
-mac => string (the mac to verify), string => string (the digested string), type => "digest" || "cipher" # hmac or cmac, fatal => bool (defaults to false, whbich just returns undef on failure)
+The following arguments are allowed:
 
-=item hmac_digest_string %params
+=over 4
 
-=item verify_hmac %params
+=item * mac
 
-mac => string (the mac to verify), string => string (the digested string), fatal => bool (defaults to false), all params of hmac_digest_string
+The MAC string to verify.
 
-=item cmac_digest_string %params
+=item * string
 
-=item verify_cmac
+The digested string.
+
+=item * type
+
+One of 'digest' or 'cipher' (hmac or cmac).
+
+=item * fatal
+
+If true, errors will be fatal.  The default is false, which means that
+failures will return undef.
+
+=back
+
+=item hmac_digest_string( %params )
+
+=item verify_hmac( %params )
+
+The following arguments are allowed:
+
+=over 4
+
+=item * mac
+
+The MAC string to verify.
+
+=item * string
+
+The digested string.
+
+=item * fatal
+
+If true, errors will be fatal.  The default is false, which means that
+failures will return undef.
+
+=back
+
+In addition, all the parameters which can be supplied to C<hmac_digest_string()>
+are also available to this method.
+
+=item cmac_digest_string( %params )
+
+=item verify_cmac()
 
 cmac, emac
 
 with odd args the firstr is treated as the string
 
-=item weak_random_string %params
+=item weak_random_string( %params )
 
-A fairly entropic random string, suitable for digesting
+A fairly entropic random string, suitable for digesting.
 
-digest => bool || alg (defaults to true), encode bool || alg
+The result is the concatenation of several pseudorandom numbers.
 
-=item strong_random_string %params
+This is a good enough value for e.g. session IDs.
 
-digest => bool || alg (defaults to false), encode bool || alg, bytes => $n (defaults to 32)
+The following parameters are available:
+
+=over 4
+
+=item * digest
+
+Expects bool or algorithm. Unless disabled, the string will be digested with the default algorithm.
+
+=item * encode
+
+Expects bool or alg.
+
+=back
+
+
+=item strong_random_string( %params )
+
+Available arguments are:
+
+=over 4
+
+=item * digest
+
+Expects bool or alg.  The default is false.
+
+=item * encode
+
+Expects bool or alg.
+
+=item * bytes
+
+Expects a number; the default is 32.
+
+=back
+
 
 might not be supported (tries /dev/random  and/or the OpenSSL bindings)
 
-=item encode_string_alphanumerical $string
+=item encode_string_alphanumerical( $string )
 
-=item decode_string_alphanumerical $string
+=item decode_string_alphanumerical( $string )
 
-=item encode_string_uri $string
+=item encode_string_uri( $string )
 
-=item decode_string_uri $string
+=item decode_string_uri( $string )
 
 encoding into a URI safe string
 
-=item encode_string_printable $string
+=item encode_string_printable( $string )
 
-=item decode_string_printable $string
+=item decode_string_printable( $string )
 
-=item encode_string_hex $string
+=item encode_string_hex( $string )
 
-=item decode_string_hex $string
+=item decode_string_hex( $string )
 
-=item encode_string_uri_escape $string
+=item encode_string_uri_escape( $string )
 
-=item decode_string_uri_escape $string
+=item decode_string_uri_escape( $string )
 
-=item encode_string_base64 $string
+=item encode_string_base64( $string )
 
-=item decode_string_base64 $string
+=item decode_string_base64( $string )
 
-=item encode_string_base32 $string
+=item encode_string_base32( $string )
 
-=item decode_string_base32 $string
+=item decode_string_base32( $string )
 
 # "default" is there to be overridden by configs, if it returns nothing fallback will be called
 # "fallback" is for when nothing is configured -- the class's default
 
-=item disable
+=item disable_fallback()
 
 When true only the first item from the fallback list will be tried, and if it
-can't be loaded there will be loud deaths.
+can't be loaded there will be a fatal error.
 
-Enable this to ensure portability
+Enable this to ensure portability.
 
-=item default_key
+=item default_key()
 
-=item default_cipher
+=item default_cipher()
 
-=item fallback_cipher
+=item fallback_cipher()
 
 find the first from fallback_cipher_list
 
-=item fallback_cipher_list
+=item fallback_cipher_list()
 
-qw/Rijndael Twofish Blowfish IDEA RC6 RC5/;
+qw/Rijndael Serpent Twofish Blowfish RC6 RC5/
 
-=item default_digest
+=item default_digest()
 
-=item fallback_digest
+=item fallback_digest()
 
-=item fallback_digest_list
+=item fallback_digest_list()
 
-qw/SHA1 RIPEMD-160 Whirlpool MD5/
+qw/SHA-1 SHA-256 RIPEMD160 Whirlpool MD5 Haval256/
 
-=item default_encoding
+=item default_encoding()
 
-=item fallback_encoding
+=item fallback_encoding()
 
-=item fallback_encoding_list
+=item fallback_encoding_list()
 
 "hex"
 
-=item default_alphanumerical_encoding
+=item default_alphanumerical_encoding()
 
-=item fallback_alphanumerical_encoding
+=item fallback_alphanumerical_encoding()
 
-=item fallback_alphanumerical_encoding_list
+=item fallback_alphanumerical_encoding_list()
 
 "base32", "hex"
 
-=item default_uri_encoding
+=item default_uri_encoding()
 
-=item fallback_uri_encoding
+=item fallback_uri_encoding()
 
-=item fallback_uri_encoding_list
+=item fallback_uri_encoding_list()
 
 "uri_base64" # XXX make this uri_escape?
 
-=item default_printable_encoding
+=item default_printable_encoding()
 
-=item fallback_printable_encoding
+=item fallback_printable_encoding()
 
 "base64"
 
