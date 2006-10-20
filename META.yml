@@ -22,6 +22,7 @@ recommends:
   Crypt::Rijndael: 0
   Crypt::Serpent: 0
   Crypt::Twofish: 0
+  Digest::HMAC: 0
   Digest::MD5: 0
   Digest::Whirlpool: 0
 requires: 
@@ -29,4 +30,4 @@ requires:
   Digest: 0
   Storable: 0
   Sub::Exporter: 0
-version: 0.01_04
+version: 0.01
