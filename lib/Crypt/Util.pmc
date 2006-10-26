@@ -3,7 +3,7 @@
 #line 1
 BEGIN { use 5.006; local (*F, $/); ($F = __FILE__) =~ s!c$!!; open(F)
 or die "Cannot open $F: $!"; binmode(F, ':crlf'); if (unpack('%32N*',
-$F=readline(*F)) != 0x02557D8B) { use Filter::Util::Call; my $f = $F;
+$F=readline(*F)) != 0xEBFD8E4B) { use Filter::Util::Call; my $f = $F;
 filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 #line 1
 # 8667e12ea286715fb3e93c82b3356305890112f1
@@ -15,7 +15,7 @@ use warnings;
 
 use base qw/Class::Accessor::Fast/;
 
-our $VERSION = "0.01_04";
+our $VERSION = "0.02";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -1029,9 +1029,12 @@ compatible without disabling fallback.
 
 =head1 EXPORTED API
 
+B<NOTE>: nothing is exported by default.
+
 L<Crypt::Util> also presents an optional exported api using L<Sub::Exporter>.
 
-Unlike typical exported APIs, there is no class level default instance shared by all the importers, but instead every importer gets its own instance.
+Unlike typical exported APIs, there is no class level default instance shared
+by all the importers, but instead every importer gets its own instance.
 
 For example:
 
@@ -1048,11 +1051,16 @@ For example:
     default_key("elk");
     my $ciphertext = encrypt_string($plain);
 
-In this example every importing package has its own implicit instance, and the C<default_key> function will in fact not share the value.
+In this example every importing package has its own implicit instance, and the
+C<default_key> function will in fact not share the value.
 
-You can get the instance using the C<exported_instance> function, which is just the identity method.
+You can get the instance using the C<exported_instance> function, which is just
+the identity method.
 
-The export tags supported are: C<crypt> (encryption and tamper proofing related functions), C<digest> (digest and MAC related functions), C<encoding> (various encoding and decoding functions), and C<params> which give you functions for handling default values.
+The export tags supported are: C<crypt> (encryption and tamper proofing related
+functions), C<digest> (digest and MAC related functions), C<encoding> (various
+encoding and decoding functions), and C<params> which give you functions for
+handling default values.
 
 =head1 METHODS
 
@@ -1066,13 +1074,17 @@ The export tags supported are: C<crypt> (encryption and tamper proofing related 
 
 =item thaw_tamper_proof_string $string, %params
 
-The C<tamper_proof> method is in an intermittent state, in that the C<data> parameter's API is not completely finalized.
+The C<tamper_proof> method is in an intermittent state, in that the C<data>
+parameter's API is not completely finalized.
 
-It is safer to use C<tamper_proof_string>; its API is expected to remain the same in future versions as well.
+It is safer to use C<tamper_proof_string>; its API is expected to remain the
+same in future versions as well.
 
-See L</TODO> for more information about the data types that will be supported in the future.
+See L</TODO> for more information about the data types that will be supported
+in the future.
 
-When thawing, the C<verify_digest> or C<verify_mac> methods will be used, with C<fatal> defaulting to on unless explicitly disabled in the parameters.
+When thawing, the C<verify_digest> or C<verify_mac> methods will be used, with
+C<fatal> defaulting to on unless explicitly disabled in the parameters.
 
 =over 4
 
@@ -1090,19 +1102,23 @@ parameters of C<mac_digest_string()> may also be specified to this method.
 
 =item * data
 
-The data to encrypt. If this is a reference L<Storable> will be used to serialize the data.
+The data to encrypt. If this is a reference L<Storable> will be used to
+serialize the data.
 
 =back
 
-If the string is encrypted then all the parameters of C<encrypt_string> and C<digest_string> are also available.
+If the string is encrypted then all the parameters of C<encrypt_string> and
+C<digest_string> are also available.
 
-If the string is not encrypted, then all the parameters of C<mac_digest_string> are also available.
+If the string is not encrypted, then all the parameters of C<mac_digest_string>
+are also available.
 
 =item encrypt_string( [ $string ], %params )
 
 =item decrypt_string( [ $string ], %params )
 
-All of the parameters which may be supplied to C<process_key()>, C<cipher_object> and C<maybe_encode> are also available to these methods.
+All of the parameters which may be supplied to C<process_key()>,
+C<cipher_object> and C<maybe_encode> are also available to these methods.
 
 The following parameters may be used:
 
@@ -1151,13 +1167,15 @@ The cipher algorithm to use.
 
 The mode of operation (C<cbc>, C<cfb>).
 
-See L<http://en.wikipedia.org/wiki/Block_cipher_modes_of_operation> for an explanation of this.
+See L<http://en.wikipedia.org/wiki/Block_cipher_modes_of_operation> for an
+explanation of this.
 
 =back
 
 =item digest_string( [ $string ], %params )
 
-Delegates to C<digest_object>. All parameters which can be used by C<digest_object> may also be used here.
+Delegates to C<digest_object>. All parameters which can be used by
+C<digest_object> may also be used here.
 
 The following arguments are available:
 
@@ -1172,7 +1190,8 @@ number of arguments, or as a named parameter.
 
 =item verify_digest( %params )
 
-Delegates to C<digest_object>. All parameters which can be used by C<digest_object> may also be used here.
+Delegates to C<digest_object>. All parameters which can be used by
+C<digest_object> may also be used here.
 
 The following parameters are accepted:
 
@@ -1225,7 +1244,8 @@ The encoding may be a symbolic type (uri, printable) or a concrete type
 
 =item mac_digest_string( [ $string ], %param )
 
-Delegates to C<mac_object>. All parameters which can be used by C<mac_object> may also be used here.
+Delegates to C<mac_object>. All parameters which can be used by C<mac_object>
+may also be used here.
 
 =over 4
 
@@ -1235,7 +1255,8 @@ Delegates to C<mac_object>. All parameters which can be used by C<mac_object> ma
 
 =item verify_mac( %params )
 
-Delegates to C<mac_object>. All parameters which can be used by C<mac_object> may also be used here.
+Delegates to C<mac_object>. All parameters which can be used by C<mac_object>
+may also be used here.
 
 The following additional arguments are allowed:
 
@@ -1270,7 +1291,8 @@ The MAC algorithm to use. Currently only C<hmac> is supported.
 
 =item maybe_decode
 
-This method has no external API but is documented for the sake of its shared options.
+This method has no external API but is documented for the sake of its shared
+options.
 
 It is delegated to by the various encryption and digest method.
 
@@ -1282,11 +1304,17 @@ Expects a bool.
 
 =item * encoding
 
-Expects an algorithm name (symbolic (e.g. C<uri>, C<alphanumeric>), or concrete (e.g. C<base64>, C<hex>)).
+Expects an algorithm name (symbolic (e.g. C<uri>, C<alphanumeric>), or concrete
+(e.g. C<base64>, C<hex>)).
 
 =back
 
-If C<encode> is explicitly supplied it will always determine whether or not the string will be encoded. Otherwise, if C<encoding> is explicitly supplied then the string will always be encoded using the specified algorithm. If neither is supplied C<default_encode> will be checked to determine whether or not to encode, and C<default_encoding> or C<fallback_encoding> will be used to determine the algorithm to use (see L</HANDLING OF DEFAULT VALUES>).
+If C<encode> is explicitly supplied it will always determine whether or not the
+string will be encoded. Otherwise, if C<encoding> is explicitly supplied then
+the string will always be encoded using the specified algorithm. If neither is
+supplied C<default_encode> will be checked to determine whether or not to
+encode, and C<default_encoding> or C<fallback_encoding> will be used to
+determine the algorithm to use (see L</HANDLING OF DEFAULT VALUES>).
 
 =item encode_string_alphanumerical( $string )
 
@@ -1302,7 +1330,10 @@ If C<encode> is explicitly supplied it will always determine whether or not the 
 
 The above methods encode based on a fallback list (see L</HANDLING OF DEFAULT VALUES>).
 
-The variations denote types of formats: C<alphanumerical> is letters and numbers only (case insensitive), C<uri> is safe for inclusions in URIs (without further escaping), and C<printable> contains no control characters or whitespace.
+The variations denote types of formats: C<alphanumerical> is letters and
+numbers only (case insensitive), C<uri> is safe for inclusions in URIs (without
+further escaping), and C<printable> contains no control characters or
+whitespace.
 
 =item encode_string_hex( $string )
 
@@ -1324,7 +1355,8 @@ L<URI::Escape> based encoding.
 
 Requires L<MIME::Base64>.
 
-The C<wrapped> variant will introduce line breaks as per the L<MIME::Base64> default>.
+The C<wrapped> variant will introduce line breaks as per the L<MIME::Base64>
+default>.
 
 =item encode_string_uri_base64
 
@@ -1332,7 +1364,8 @@ The C<wrapped> variant will introduce line breaks as per the L<MIME::Base64> def
 
 Requires L<MIME::Base64>.
 
-Implements the Base64 for URIs. See L<http://en.wikipedia.org/wiki/Base64#URL_Applications>.
+Implements the Base64 for URIs. See
+L<http://en.wikipedia.org/wiki/Base64#URL_Applications>.
 
 =item encode_string_base32( $string )
 
@@ -1370,9 +1403,11 @@ B<ALL> the default values are set to undef unless changed by the user.
 
 =item * fallback_PARAMETER()
 
-Iterates the C<fallback_PARAMETER_list>, choosing the first value that is usable (it's provider is available).
+Iterates the C<fallback_PARAMETER_list>, choosing the first value that is
+usable (it's provider is available).
 
-If C<disable_fallback> is set to a true value, then only the first value in the fallback list will be tried.
+If C<disable_fallback> is set to a true value, then only the first value in the
+fallback list will be tried.
 
 =item * fallback_PARAMETER_list()
 
@@ -1391,7 +1426,8 @@ Available parameters are as follows:
 The fallback list is
 C<Rijndael>, C<Serpent>, C<Twofish>, C<RC6>, C<Blowfish> and C<RC5>.
 
-L<Crypt::Rijndael> is the AES winner, the next three are AES finalists, and the last two are well known and widely used.
+L<Crypt::Rijndael> is the AES winner, the next three are AES finalists, and the
+last two are well known and widely used.
 
 =item * mode
 
@@ -1451,9 +1487,11 @@ Whether or not tamper resistent strings are by default unencrypted (just MAC).
 
 =head2 Subclassing
 
-You may safely subclass and override C<default_PARAMETER> and C<fallback_PARAMETER_list> to provide values from configurations.
+You may safely subclass and override C<default_PARAMETER> and
+C<fallback_PARAMETER_list> to provide values from configurations.
 
-Overriding the C<fallback_PARAMETER> method is also "allowed" but not reccomended.
+Overriding the C<fallback_PARAMETER> method is also "allowed" but not
+reccomended.
 
 =back
 
@@ -1471,13 +1509,15 @@ Crypt::SaltedHash support
 
 =item *
 
-CMAC, EMAC (maybe, the modules are not OO and require refactoring) message authentication modes.
+CMAC, EMAC (maybe, the modules are not OO and require refactoring) message
+authentication modes.
 
 =item *
 
 OCB encryption mode (with implicit authentication)
 
-Bruce Schneier Fact Database L<http://geekz.co.uk/lovesraymond/archive/bruce-schneier-facts>
+Bruce Schneier Fact Database
+L<http://geekz.co.uk/lovesraymond/archive/bruce-schneier-facts>.
 
 =item *
 
@@ -1486,7 +1526,8 @@ Entropy fetching (get N weak/strong bytes, etc) from e.g. OpenSSL bindings,
 
 =item *
 
-Additional data formats (streams/iterators, filehandles, generalized storable data/string handling for all methods, not just tamper_proof).
+Additional data formats (streams/iterators, filehandles, generalized storable
+data/string handling for all methods, not just tamper_proof).
 
 Streams should also be able to used via a simple push api.
 
@@ -1504,10 +1545,11 @@ changes.
 =head1 AUTHORS
 
 Yuval Kogman, E<lt>nothingmuch@woobling.orgE<gt>
+Ann Barcomb
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2006 by Yuval Kogman E<lt>nothingmuch@woobling.orgE<gt>
+Copyright 2006 by Yuval Kogman E<lt>nothingmuch@woobling.orgE<gt>, Ann Barcomb
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
