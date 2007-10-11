@@ -35,4 +35,4 @@ requires:
   Perl6::Junction: 0
   Storable: 0
   Sub::Exporter: 0
-version: 0.04
+version: 0.05
