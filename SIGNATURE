@@ -14,21 +14,21 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 aff30c8d2654c461f94afcdd733c49e65492f66c Changes
+SHA1 6da9df974867cfd2c4812cf7f2733cec0d75a6ff Changes
 SHA1 1804d0b8b369134f9f0efdc6085152ede7115042 MANIFEST
 SHA1 1b3d0bb9d042f254de78745f89810953fd7dad9b MANIFEST.SKIP
-SHA1 e55d87c681f6543a8a40fa6fe3af0c9ccd272608 META.yml
+SHA1 30c4e84245810f1b52e4b494b52d6bcc6ff78ce9 META.yml
 SHA1 9cbb32f559d0815973e9dc99d8c18330b9788f03 Makefile.PL
-SHA1 9b2f9d83bcf77860f53a0c07c90a4a59ad9f5df1 inc/Module/Install.pm
-SHA1 abe32855d75ab13747cf65765af9947b7a8c3057 inc/Module/Install/Base.pm
-SHA1 95b81d1e91bd634467bf633571eff4420e9c04eb inc/Module/Install/Can.pm
-SHA1 1fe98c63cf9d7271c8cb4183ba230f152df69e26 inc/Module/Install/Fetch.pm
-SHA1 2249171a2b72cd73ff2c0a06597d29f86e5df456 inc/Module/Install/Makefile.pm
-SHA1 381bb98ea3877bba49ae85e7a7ea130645fd3dbf inc/Module/Install/Metadata.pm
-SHA1 0c2118868ef82ac517eb6d9c3bd93e6eb9bbf83e inc/Module/Install/Win32.pm
-SHA1 e827d6d43771032fa3df35c0ad5e5698d0e54cda inc/Module/Install/WriteAll.pm
-SHA1 0a26ad8aa59a29661ace4ce2f63e002ede470af6 lib/Crypt/Util.pm
-SHA1 eeb3af5c304ca0b4e29196b5aec294b02ee38547 lib/Crypt/Util.pmc
+SHA1 78edb89a439463e44c33a72bbee84c54d0dc8aaf inc/Module/Install.pm
+SHA1 8ea4e37df83fd0c1c050be5c8da75545c3828d9b inc/Module/Install/Base.pm
+SHA1 1da6031583c32f0d1ec073b8376102fc51427dcc inc/Module/Install/Can.pm
+SHA1 b779375b90c16af2f31f38a1dd2b5df223c7f2fb inc/Module/Install/Fetch.pm
+SHA1 2054450e1e9c1dd8056362bf4a64ae70d5d71476 inc/Module/Install/Makefile.pm
+SHA1 5d6189b2cad15cf9932a28faafd55130c8247e83 inc/Module/Install/Metadata.pm
+SHA1 02af973fae2ac3531fa6b704574b2b8cb2a08148 inc/Module/Install/Win32.pm
+SHA1 3a2eab96e91cca8d99938cda7791759ae9d97b3a inc/Module/Install/WriteAll.pm
+SHA1 b1dba94089c5215d6809da31ea5a82849663062b lib/Crypt/Util.pm
+SHA1 8364796e1541b55ec001466f26898a1fe570fab4 lib/Crypt/Util.pmc
 SHA1 3058e21cfa4fb7bae69256a18be197add0a26a97 lib/Digest/MoreFallbacks.pm
 SHA1 a940c6545a074e1c2df7d3c9c33b3ca02723ec5c lib/Digest/MultiHash.pm
 SHA1 bb28616e6774ede46a280c1e334d74a35f562e6c t/basic.t
@@ -37,11 +37,11 @@ SHA1 bc886198f5871eff081e1c172531979ff686ed3c t/encoding.t
 SHA1 906f4a2d2884084091a33c9709a7830ef0ef2713 t/encrypt.t
 SHA1 97bd175df87eee55e698529a9b1134f700280f46 t/exported.t
 SHA1 9b8429918af821d512626ecac1559d9f108e6a7b t/multihash.t
-SHA1 4db7a8399cc39b856e106e29de3abfc1b70c013d t/tamper.t
+SHA1 fce04b4ce609ed4dfd7fc210433659bc98c86760 t/tamper.t
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.5 (Darwin)
+Version: GnuPG v1.4.7 (Darwin)
 
-iD8DBQFFOhD5VCwRwOvSdBgRAn8KAJ46dKEId2V0A2s7fsYsYA7m4IFT5QCfcYUC
-fRDAZz7/0OuZlXnriQ3RQg8=
-=oXZ3
+iD8DBQFHDfDZVCwRwOvSdBgRAgfAAJ9XpGyzBktUAlISlPuxwZsMdJeERACgiYA2
+6ZfbRKc4jIzGtVqe2JaY4GE=
+=9idM
 -----END PGP SIGNATURE-----

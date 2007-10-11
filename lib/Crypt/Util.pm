@@ -7,10 +7,12 @@ use warnings;
 
 use base qw/Class::Accessor::Fast/;
 
-our $VERSION = "0.02";
+our $VERSION = "0.03";
 
 use Digest;
 use Digest::MoreFallbacks;
+
+use Perl6::Junction qw(any);
 
 use Carp qw/croak/;
 
@@ -19,6 +21,7 @@ use Sub::Exporter;
 BEGIN {
 	our @DEFAULT_ACCESSORS = qw/
 		mode
+		authenticated_mode
 		encode
 		encoding
 		digest
@@ -29,6 +32,7 @@ BEGIN {
 		printable_encoding
 		use_literal_key
 		tamper_proof_unencrypted
+		tamper_proof_authenticated_mode
 	/;
 
 	__PACKAGE__->mk_accessors( map { "default_$_" } @DEFAULT_ACCESSORS );
@@ -38,6 +42,7 @@ BEGIN {
 	my %export_groups = (
 		'crypt' => [qw/
 			encrypt_string decrypt_string
+			authenticated_encrypt_string
 			tamper_proof thaw_tamper_proof
 			cipher_object
 		/],
@@ -72,10 +77,13 @@ BEGIN {
 	});
 }
 
+our @KNOWN_AUTHENTICATING_MODES = qw(EAX OCB),
+
 our %FALLBACK_LISTS = (
 	mode                    => [qw/CFB CBC Ctr OFB/],
 	stream_mode             => [qw/CFB Ctr OFB/],
 	block_mode              => [qw/CBC/],
+	authenticated_mode      => [qw/EAX/], # OCB/], OCB is patented
 	cipher                  => [qw/Rijndael Serpent Twofish RC6 Blowfish RC5/],
 	digest                  => [qw/SHA-1 SHA-256 RIPEMD160 Whirlpool MD5 Haval256/],
 	mac                     => [qw/HMAC/],
@@ -309,7 +317,7 @@ sub _cipher_object_baurem {
 }
 
 use tt;
-[% FOR mode IN ["stream", "block"] %]
+[% FOR mode IN ["stream", "block","authenticated"] %]
 sub cipher_object_[% mode %] {
 	my ( $self, @args ) = _args @_;
 	my $mode = $self->_process_param("[% mode %]_mode");
@@ -509,7 +517,7 @@ sub verify_mac {
 }
 
 {
-	my @flags = qw/storable/;
+	my @flags = qw/serialized/;
 
 	sub _flag_hash_to_int {
 		my ( $self, $flags ) = @_;
@@ -542,28 +550,24 @@ sub verify_mac {
 	}
 }
 
-our $TAMPER_PROOF_VERSION = 1;
-
 sub tamper_proof {
 	my ( $self, %params ) = _args @_, "data";
 
-	$self->_process_params( \%params, qw/
-		data
-	/);
-
-	my $data = delete $params{data};
-
-	my %flags;
-
-	if ( ref $data ) {
-		$flags{storable} = 1;
-		require Storable;
-		$data = Storable::nfreeze($data);
-	}
-
-	my $packed = $self->_pack_version_flags_and_string( $TAMPER_PROOF_VERSION, \%flags, $data );
+	my $packed = $self->pack_data( %params );
 
 	$self->tamper_proof_string( %params, string => $packed );
+}
+
+sub freeze_data {
+	my ( $self, %params ) = @_;
+	require Storable;
+	Storable::nfreeze($params{data});
+}
+
+sub thaw_data {
+	my ( $self, %params ) = @_;
+	require Storable;
+	Storable::thaw($params{data});
 }
 
 sub tamper_proof_string {
@@ -578,9 +582,8 @@ sub tamper_proof_string {
 			mode
 		/);
 
-		if ( lc($params{mode}) eq "ocb" ) {
-			my $ciphertext = $self->ocb_tamper_proof_string( %params );
-			$self->_pack_hash_and_message( ocb => $ciphertext );
+		if ( $self->_authenticated_mode(\%params) ) {
+			return $self->authenticated_encrypt_string(%params);
 		} else {
 			my $ciphertext = $self->encrypt_and_digest_tamper_proof_string( %params );
 			return $self->_pack_tamper_proof( encrypted => $ciphertext );
@@ -611,6 +614,36 @@ sub tamper_proof_string {
 	}
 }
 
+sub _authenticated_mode {
+	my ( $self, $params ) = @_;
+
+	# trust explicit param
+	if ( exists $params->{authenticated_mode} ) {
+		$params->{mode} = delete $params->{authenticated_mode};
+		return 1;
+	}
+
+	# check if the explicit param is authenticating
+	if ( exists $params->{mode} ) {
+		# allow overriding
+		if ( exists $params->{mode_is_authenticating} ) {
+			return $params->{mode_is_authenticating};
+		}
+
+		if ( any( map { lc } @KNOWN_AUTHENTICATING_MODES ) eq lc($params->{mode}) ) {
+			return 1;
+		}
+	}
+
+	if ( $self->default_tamper_proof_authenticated_mode ) {
+		$self->_process_params( $params, qw(authenticated_mode) );
+		$params->{mode} = delete $params->{authenticated_mode};
+		return 1;
+	}
+
+	return;
+}
+
 sub _pack_hash_and_message {
 	my ( $self, $hash, $message ) = @_;
 	pack("n/a* a*", $hash, $message);
@@ -619,6 +652,45 @@ sub _pack_hash_and_message {
 sub _unpack_hash_and_message {
 	my ( $self, $packed ) = @_;
 	unpack("n/a* a*", $packed);
+}
+
+our $PACK_FORMAT_VERSION = 1;
+
+sub pack_data {
+	my ( $self, %params ) = _args @_, "data";
+
+	$self->_process_params( \%params, qw/
+		data
+	/);
+
+	my $data = delete $params{data};
+
+	my %flags;
+
+	if ( ref $data ) {
+		$flags{serialized} = 1;
+		$data = $self->freeze_data( %params, data => $data );
+	}
+
+	$self->_pack_version_flags_and_string( $PACK_FORMAT_VERSION, \%flags, $data );
+}
+
+sub unpack_data {
+	my ( $self, %params ) = _args @_, "data";
+
+	$self->_process_params( \%params, qw/
+		data
+	/);
+
+	my ( $version, $flags, $data ) = $self->_unpack_version_flags_and_string($params{data});
+
+	$self->_packed_string_version_check( $version );
+
+	if ( $flags->{serialized} ) {
+		return $self->thaw_data( %params, data => $data );
+	} else {
+		return $data;
+	}
 }
 
 sub _pack_version_flags_and_string {
@@ -636,9 +708,15 @@ sub _unpack_version_flags_and_string {
 	return ( $version, $flags, $string );
 }
 
-sub ocb_tamper_proof_string {
+sub authenticated_encrypt_string {
 	my ( $self, %params ) = _args @_, "string";
-	return $self->encrypt_string( %params, mode => "ocb" );
+
+	$self->_process_params( \%params, qw/
+		authenticated_mode
+	/);
+
+	my $mac_type = delete $params{mac};
+	return $self->encrypt_string( %params,  );
 }
 
 sub encrypt_and_digest_tamper_proof_string {
@@ -685,17 +763,7 @@ sub thaw_tamper_proof {
 	my $method = "thaw_tamper_proof_string_$type";
 
 	my $packed = $self->$method( %params, string => $message );
-
-	my ( $version, $flags, $data ) = $self->_unpack_version_flags_and_string($packed);
-
-	$self->_tamper_proof_version_check( $version );
-
-	if ( $flags->{storable} ) {
-		require Storable;
-		return Storable::thaw($data);
-	} else {
-		return $data;
-	}
+	$self->unpack_data(%params, data => $packed);
 }
 
 sub thaw_tamper_proof_string_encrypted {
@@ -735,14 +803,14 @@ sub thaw_tamper_proof_string_mac {
 	return $packed;
 }
 
-sub _tamper_proof_version_check {
+sub _packed_string_version_check {
 	my ( $self, $version ) = @_;
 
-	croak "Incompatible tamper proof string (I'm version $TAMPER_PROOF_VERSION, thawing version $version)"
-		unless $version == $TAMPER_PROOF_VERSION;
+	croak "Incompatible packed string (I'm version $PACK_FORMAT_VERSION, thawing version $version)"
+		unless $version == $PACK_FORMAT_VERSION;
 }
 
-use tt
+use tt;
 [% FOR f IN ["en","de"] %]
 sub [% f %]code_string {
 	my ( $self, %params ) = _args @_, "string";
@@ -1428,7 +1496,9 @@ authentication modes.
 
 =item *
 
-OCB encryption mode (with implicit authentication)
+EAX/OCB encryption mode (with implicit authentication)
+
+=item *
 
 Bruce Schneier Fact Database
 L<http://geekz.co.uk/lovesraymond/archive/bruce-schneier-facts>.

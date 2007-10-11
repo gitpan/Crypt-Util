@@ -1,3 +1,4 @@
+--- 
 abstract: A lightweight Crypt/Digest convenience API
 author: Yuval Kogman, <nothingmuch@woobling.org>
 build_requires: 
@@ -5,8 +6,11 @@ build_requires:
   Test::More: 0
   Test::use::ok: 0
 distribution_type: module
-generated_by: Module::Install version 0.64
+generated_by: Module::Install version 0.67
 license: MIT
+meta-spec: 
+  url: http://module-build.sourceforge.net/META-spec-v1.3.html
+  version: 1.3
 name: Crypt-Util
 no_index: 
   directory: 
@@ -30,4 +34,4 @@ requires:
   Digest: 0
   Storable: 0
   Sub::Exporter: 0
-version: 0.02
+version: 0.03
