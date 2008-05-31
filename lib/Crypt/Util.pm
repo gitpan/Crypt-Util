@@ -1,4 +1,5 @@
-#!/usr/bin/perl
+#line 1
+# 8667e12ea286715fb3e93c82b3356305890112f1
 
 package Crypt::Util;
 
@@ -7,7 +8,7 @@ use warnings;
 
 use base qw/Class::Accessor::Fast/;
 
-our $VERSION = "0.05";
+our $VERSION = "0.06";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -32,7 +33,6 @@ BEGIN {
 		printable_encoding
 		use_literal_key
 		tamper_proof_unencrypted
-		tamper_proof_authenticated_mode
 	/;
 
 	__PACKAGE__->mk_accessors( map { "default_$_" } @DEFAULT_ACCESSORS );
@@ -77,16 +77,17 @@ BEGIN {
 	});
 }
 
-our @KNOWN_AUTHENTICATING_MODES = qw(EAX OCB),
+our @KNOWN_AUTHENTICATING_MODES = qw(EAX OCB GCM CWC CCM),
 
 our %FALLBACK_LISTS = (
 	mode                    => [qw/CFB CBC Ctr OFB/],
 	stream_mode             => [qw/CFB Ctr OFB/],
 	block_mode              => [qw/CBC/],
-	authenticated_mode      => [qw/EAX/], # OCB/], OCB is patented
+	authenticated_mode      => [qw/EAX GCM CCM/], # OCB/], OCB is patented
 	cipher                  => [qw/Rijndael Serpent Twofish RC6 Blowfish RC5/],
+# fa884d2582f6f05a5ffc6634115076027e7e91e1
 	digest                  => [qw/SHA-1 SHA-256 RIPEMD160 Whirlpool MD5 Haval256/],
-	mac                     => [qw/HMAC/],
+	mac                     => [qw/HMAC CMAC/],
 	encoding                => [qw/hex/],
 	printable_encoding      => [qw/base64 hex/],
 	alphanumerical_encoding => [qw/base32 hex/],
@@ -140,6 +141,7 @@ foreach my $fallback ( keys %FALLBACK_LISTS ) {
 			return $elem if $cache->{$elem};
 		}
 
+
 		return;
 	}
 }
@@ -152,12 +154,15 @@ sub _try_cipher_fallback {
 sub _try_digest_fallback {
 	my ( $self, $name ) = @_;
 
-	local $@;
-	eval { $self->digest_object( digest => $name ) };
+	my $e = do {
+		local $@;
+		eval { $self->digest_object( digest => $name ) };
+		$@;
+	};
 
-	return 1 if !$@;
+	return 1 if !$e;
 	( my $file = $name ) =~ s{::}{/}g;
-	die $@ if $@ !~ m{^Can't locate Digest/${file}.pm in \@INC};
+	die $e if $e !~ m{^Can't locate Digest/\Q${file}.pm\E in \@INC};
 	return;
 }
 
@@ -176,11 +181,14 @@ sub _try_loading_module {
 
 	(my $file = "${name}.pm") =~ s{::}{/}g;
 
-	local $@;
-	eval { require $file }; # yes it's portable
+	my $e = do {
+		local $@;
+		eval { require $file }; # yes it's portable
+		$@;
+	};
 
-	return 1 if !$@;
-	die $@ if $@ !~ /^Can't locate $file in \@INC/;
+	return 1 if !$e;
+	die $e if $e !~ /^Can't locate \Q$file\E in \@INC/;
 	return;
 }
 
@@ -201,10 +209,15 @@ sub _try_loading_module {
 		$module =~ s{::}{/}g;
 		$module .= ".pm";
 
-		local $@;
-		eval { require $module };
+		my $e = do {
+			local $@;
+			eval { require $module }; # yes it's portable
+			$@;
+		};
 
-		return !$@;
+		return 1 if !$e;
+		die $e if $e !~ /^Can't locate \Q$module\E in \@INC/;
+		return;
 	}
 }
 
@@ -258,9 +271,25 @@ sub cipher_object {
 
 	$self->_process_params( \%params, qw/mode/);
 
-	my $method = "cipher_object_" . lc(delete $params{mode});
+	my $method = "cipher_object_" . lc(my $mode = delete $params{mode});
+
+	croak "mode $mode is unsupported" unless $self->can($method);
 
 	$self->$method( %params );
+}
+
+sub cipher_object_eax {
+	my ( $self, %params ) = _args @_;
+
+	$self->_process_params( \%params, qw/cipher/ );
+
+	require Crypt::EAX;
+
+	Crypt::EAX->new(
+		%params,
+		cipher => "Crypt::$params{cipher}", # FIXME take a ref, but Crypt::CFB will barf
+		key    => $self->process_key(%params),
+	);
 }
 
 sub cipher_object_cbc {
@@ -316,15 +345,25 @@ sub _cipher_object_baurem {
 	$class->new( $self->process_key(%params), join("::", $prefix, $params{cipher}) );
 }
 
-use tt;
-[% FOR mode IN ["stream", "block","authenticated"] %]
-sub cipher_object_[% mode %] {
+
+sub cipher_object_stream {
 	my ( $self, @args ) = _args @_;
-	my $mode = $self->_process_param("[% mode %]_mode");
+	my $mode = $self->_process_param("stream_mode");
 	$self->cipher_object( @args, mode => $mode );
 }
-[% END %]
-no tt;
+
+sub cipher_object_block {
+	my ( $self, @args ) = _args @_;
+	my $mode = $self->_process_param("block_mode");
+	$self->cipher_object( @args, mode => $mode );
+}
+
+sub cipher_object_authenticated {
+	my ( $self, @args ) = _args @_;
+	my $mode = $self->_process_param("authenticated_mode");
+	$self->cipher_object( @args, mode => $mode );
+}
+
 
 sub process_key {
 	my ( $self, %params ) = _args @_, "key";
@@ -369,7 +408,7 @@ sub digest_object {
 }
 
 {
-	# this is a hack that gives to Digest::HMAC something that responds to ->new
+# c423c07872e6e8002ee9c826c602c9e5e9ec705a
 
 	package
 	Crypt::Util::HMACDigestFactory;
@@ -416,13 +455,12 @@ sub mac_object_hmac {
 	Digest::HMAC->new(
 		$key,
 		$digest_factory,
-		# FIXME hmac_block_size param?
+# 8f6ca5a32f36f2311a153d671093109b46db764e
 	);
 }
 
-use tt;
-[% FOR f IN ["en", "de"] %]
-sub [% f %]crypt_string {
+
+sub encrypt_string {
 	my ( $self, %params ) = _args @_, "string";
 
 	my $string = delete $params{string};
@@ -430,22 +468,20 @@ sub [% f %]crypt_string {
 
 	my $c = $self->cipher_object( %params );
 
-	[% IF f == "en" %]
+	
 	$self->maybe_encode( $c->encrypt($string), \%params );
-	[% ELSE %]
-	$c->decrypt( $self->maybe_decode($string, \%params ) );
-	[% END %]
+	
 }
 
-sub maybe_[% f %]code {
+sub maybe_encode {
 	my ( $self, $string, $params ) = @_;
 
-	my $should_encode = exists $params->{[% f %]code}
-		? $params->{[% f %]code}
+	my $should_encode = exists $params->{encode}
+		? $params->{encode}
 		: exists $params->{encoding} || $self->default_encode;
 
 	if ( $should_encode ) {
-		return $self->[% f %]code_string(
+		return $self->encode_string(
 			%$params,
 			string   => $string,
 		);
@@ -453,8 +489,37 @@ sub maybe_[% f %]code {
 		return $string;
 	}
 }
-[% END %]
-no tt;
+
+sub decrypt_string {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $string = delete $params{string};
+	croak "You must provide the 'string' parameter" unless defined $string;
+
+	my $c = $self->cipher_object( %params );
+
+	
+	$c->decrypt( $self->maybe_decode($string, \%params ) );
+	
+}
+
+sub maybe_decode {
+	my ( $self, $string, $params ) = @_;
+
+	my $should_encode = exists $params->{decode}
+		? $params->{decode}
+		: exists $params->{encoding} || $self->default_encode;
+
+	if ( $should_encode ) {
+		return $self->decode_string(
+			%$params,
+			string   => $string,
+		);
+	} else {
+		return $string;
+	}
+}
+
 
 sub _digest_string_with_object {
 	my ( $self, $object, %params ) = @_;
@@ -577,25 +642,18 @@ sub tamper_proof_string {
 		? $params{encrypt}
 		: !$self->default_tamper_proof_unencrypted;
 
-	if ( $encrypted ) {
-		$self->_process_params( \%params, qw/
-			mode
-		/);
 
-		if ( $self->_authenticated_mode(\%params) ) {
-			return $self->authenticated_encrypt_string(%params);
-		} else {
-			my $ciphertext = $self->encrypt_and_digest_tamper_proof_string( %params );
-			return $self->_pack_tamper_proof( encrypted => $ciphertext );
-		}
-	} else {
-		my $signed = $self->mac_tamper_proof_string( %params );
-		$self->_pack_tamper_proof( mac => $signed );
-	}
+	my $type = ( $encrypted ? "aead" : "mac" );
+
+	my $method = "${type}_tamper_proof_string";
+
+	my $string = $self->$method( %params );
+
+	return $self->_pack_tamper_proof( $type => $string );
 }
 
 {
-	my @tamper_proof_types = qw/encrypted mac ocb/;
+	my @tamper_proof_types = qw/mac aead/;
 	my %tamper_proof_type; @tamper_proof_type{@tamper_proof_types} = 1 .. @tamper_proof_types;
 
 	sub _pack_tamper_proof {
@@ -617,31 +675,29 @@ sub tamper_proof_string {
 sub _authenticated_mode {
 	my ( $self, $params ) = @_;
 
-	# trust explicit param
+# d8ca7f81e88c105a34bbdfeca3f345ae6b895ab4
 	if ( exists $params->{authenticated_mode} ) {
 		$params->{mode} = delete $params->{authenticated_mode};
 		return 1;
 	}
 
-	# check if the explicit param is authenticating
+# 0f84e32ca8a994cc47b73f87ebe2255970458187
 	if ( exists $params->{mode} ) {
-		# allow overriding
-		if ( exists $params->{mode_is_authenticating} ) {
-			return $params->{mode_is_authenticating};
+# 90064c4d2aeb8499c4f9c733a18ef416b8d667bf
+		if ( exists $params->{mode_is_authenticated} ) {
+			return $params->{mode_is_authenticated};
 		}
 
 		if ( any( map { lc } @KNOWN_AUTHENTICATING_MODES ) eq lc($params->{mode}) ) {
 			return 1;
+		} else {
+			return;
 		}
 	}
 
-	if ( $self->default_tamper_proof_authenticated_mode ) {
-		$self->_process_params( $params, qw(authenticated_mode) );
-		$params->{mode} = delete $params->{authenticated_mode};
-		return 1;
-	}
+	$params->{mode} = $self->_process_param('authenticated_mode');
 
-	return;
+	return 1;
 }
 
 sub _pack_hash_and_message {
@@ -711,30 +767,31 @@ sub _unpack_version_flags_and_string {
 sub authenticated_encrypt_string {
 	my ( $self, %params ) = _args @_, "string";
 
-	$self->_process_params( \%params, qw/
-		authenticated_mode
-	/);
-
-	my $mac_type = delete $params{mac};
-	return $self->encrypt_string( %params,  );
+# 0d10af4c2d455ed7ab4f4524fbbd8fb8a81e3c6b
+	if ( $self->_authenticated_mode(\%params) ) {
+		return $self->encrypt_string( %params );
+	} else {
+		croak "To use encrypted tamper resistent strings an authenticated encryption mode such as EAX must be selected";
+	}
 }
 
-sub encrypt_and_digest_tamper_proof_string {
+sub authenticated_decrypt_string {
 	my ( $self, %params ) = _args @_, "string";
 
-	my $string = delete $params{string};
-	croak "You must provide the 'string' parameter" unless defined $string;
+	if ( $self->_authenticated_mode(\%params) ) {
+		return $self->decrypt_string(
+			fatal => 1,
+			%params,
+		);
+	} else {
+		croak "To use encrypted tamper resistent strings an authenticated encryption mode such as EAX must be selected";
+	}
+}
 
-	my $hash = $self->digest_string(
-		%params,
-		encode => 0,
-		string => $string,
-	);
+sub aead_tamper_proof_string {
+	my ( $self, %params ) = _args @_, "string";
 
-	return $self->encrypt_string(
-		%params,
-		string => $self->_pack_hash_and_message( $hash, $string ),
-	);
+	$self->authenticated_encrypt_string( %params );
 }
 
 sub mac_tamper_proof_string {
@@ -766,22 +823,10 @@ sub thaw_tamper_proof {
 	$self->unpack_data(%params, data => $packed);
 }
 
-sub thaw_tamper_proof_string_encrypted {
+sub thaw_tamper_proof_string_aead {
 	my ( $self, %params ) = _args @_, "string";
 
-	my $hashed_packed = $self->decrypt_string( %params );
-
-	my ( $hash, $packed ) = $self->_unpack_hash_and_message( $hashed_packed );
-
-	return unless $self->verify_hash(
-		fatal  => 1,
-		%params, # allow user to override fatal
-		hash   => $hash,
-		decode => 0,
-		string => $packed,
-	);
-
-	return $packed;
+	$self->authenticated_decrypt_string( %params );
 }
 
 sub thaw_tamper_proof_string_mac {
@@ -810,9 +855,8 @@ sub _packed_string_version_check {
 		unless $version == $PACK_FORMAT_VERSION;
 }
 
-use tt;
-[% FOR f IN ["en","de"] %]
-sub [% f %]code_string {
+
+sub encode_string {
 	my ( $self, %params ) = _args @_, "string";
 
 	my $string = delete $params{string};
@@ -824,13 +868,30 @@ sub [% f %]code_string {
 
 	my $encoding = delete $params{encoding};
 	croak "Encoding method must be an encoding name" unless $encoding;
-	my $method = "[% f %]code_string_$encoding";
+	my $method = "encode_string_$encoding";
 	croak "Encoding method $encoding is not supported" unless $self->can($method);
 
 	$self->$method($string);
 }
-[% END %]
-no tt;
+
+sub decode_string {
+	my ( $self, %params ) = _args @_, "string";
+
+	my $string = delete $params{string};
+	croak "You must provide the 'string' parameter" unless defined $string;
+
+	$self->_process_params( \%params, qw/
+		encoding
+	/);
+
+	my $encoding = delete $params{encoding};
+	croak "Encoding method must be an encoding name" unless $encoding;
+	my $method = "decode_string_$encoding";
+	croak "Encoding method $encoding is not supported" unless $self->can($method);
+
+	$self->$method($string);
+}
+
 
 sub encode_string_hex {
 	my ( $self, $string ) = @_;
@@ -860,7 +921,7 @@ sub decode_string_base64 {
 	MIME::Base64::decode_base64($base64);
 }
 
-# http://www.dev411.com/blog/2006/10/02/encoding-hashed-uids-base64-vs-hex-vs-base32
+# 246d37740a5c4c6a218f83be4355351b9fb8bdbd
 sub encode_string_uri_base64 {
 	my ( $self, $string ) = @_;
 	my $encoded = $self->encode_string_base64($string);
@@ -900,17 +961,49 @@ sub decode_string_uri_escape {
 	URI::Escape::uri_unescape($uri_escaped);
 }
 
-use tt;
-[% FOR symbolic_encoding IN ["uri", "alphanumerical", "printable"] %]
-[% FOR f IN ["en", "de"] %]
-sub [% f %]code_string_[% symbolic_encoding %] {
+
+
+sub encode_string_uri {
 	my ( $self, $string ) = @_;
-	my $encoding = $self->_process_param("[% symbolic_encoding %]_encoding");
-	$self->[% f %]code_string( string => $string, encoding => $encoding );
+	my $encoding = $self->_process_param("uri_encoding");
+	$self->encode_string( string => $string, encoding => $encoding );
 }
-[% END %]
-[% END %]
-no tt;
+
+sub decode_string_uri {
+	my ( $self, $string ) = @_;
+	my $encoding = $self->_process_param("uri_encoding");
+	$self->decode_string( string => $string, encoding => $encoding );
+}
+
+
+
+sub encode_string_alphanumerical {
+	my ( $self, $string ) = @_;
+	my $encoding = $self->_process_param("alphanumerical_encoding");
+	$self->encode_string( string => $string, encoding => $encoding );
+}
+
+sub decode_string_alphanumerical {
+	my ( $self, $string ) = @_;
+	my $encoding = $self->_process_param("alphanumerical_encoding");
+	$self->decode_string( string => $string, encoding => $encoding );
+}
+
+
+
+sub encode_string_printable {
+	my ( $self, $string ) = @_;
+	my $encoding = $self->_process_param("printable_encoding");
+	$self->encode_string( string => $string, encoding => $encoding );
+}
+
+sub decode_string_printable {
+	my ( $self, $string ) = @_;
+	my $encoding = $self->_process_param("printable_encoding");
+	$self->decode_string( string => $string, encoding => $encoding );
+}
+
+
 
 sub exported_instance {
 	my $self = shift;

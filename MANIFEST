@@ -8,7 +8,6 @@ inc/Module/Install/Metadata.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/Crypt/Util.pm
-lib/Crypt/Util.pmc
 lib/Digest/MoreFallbacks.pm
 lib/Digest/MultiHash.pm
 Makefile.PL
@@ -22,4 +21,3 @@ t/encrypt.t
 t/exported.t
 t/multihash.t
 t/tamper.t
-SIGNATURE                                Public-key signature (added by MakeMaker)

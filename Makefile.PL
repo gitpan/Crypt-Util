@@ -6,6 +6,8 @@ use inc::Module::Install;
 
 name 'Crypt-Util';
 
+perl_version '5.008';
+
 requires 'Perl6::Junction'       => 0;
 requires 'Class::Accessor::Fast' => 0;
 requires 'Digest'                => 0;
@@ -18,6 +20,8 @@ build_requires 'Test::Exception' => 0;
 
 recommends 'Crypt::CFB' => 0; # stream ciphers
 recommends 'Crypt::CBC' => 0; # block ciphers
+
+recommends 'Crypt::EAX' => 0; # AEAD mode
 
 recommends 'Crypt::Rijndael' => 0; # AES
 recommends 'Crypt::Serpent'  => 0; # AES finalist
@@ -43,6 +47,7 @@ recommends 'Digest::Whirlpool' => 0; # it's happenning
 recommends 'Digest::MD5'       => 0; # it's still alive =(
 
 recommends "Digest::HMAC" => 0;
+recommends "Digest::CMAC" => 0;
 
 license "MIT";
 

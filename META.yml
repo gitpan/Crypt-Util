@@ -1,12 +1,13 @@
 --- 
 abstract: A lightweight Crypt/Digest convenience API
-author: Yuval Kogman, <nothingmuch@woobling.org>
+author: 
+  - Yuval Kogman, <nothingmuch@woobling.org>
 build_requires: 
   Test::Exception: 0
   Test::More: 0
   Test::use::ok: 0
 distribution_type: module
-generated_by: Module::Install version 0.67
+generated_by: Module::Install version 0.70
 license: MIT
 meta-spec: 
   url: http://module-build.sourceforge.net/META-spec-v1.3.html
@@ -21,11 +22,13 @@ recommends:
   Crypt::CBC: 0
   Crypt::CFB: 0
   Crypt::DES: 0
+  Crypt::EAX: 0
   Crypt::RC6: 0
   Crypt::RIPEMD160: 0
   Crypt::Rijndael: 0
   Crypt::Serpent: 0
   Crypt::Twofish: 0
+  Digest::CMAC: 0
   Digest::HMAC: 0
   Digest::MD5: 0
   Digest::Whirlpool: 0
@@ -35,4 +38,5 @@ requires:
   Perl6::Junction: 0
   Storable: 0
   Sub::Exporter: 0
-version: 0.05
+  perl: 5.8.0
+version: 0.06

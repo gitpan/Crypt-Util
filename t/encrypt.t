@@ -6,11 +6,11 @@ use warnings;
 use Test::More;
 use Test::Exception;
 
-use ok "Crypt::Util";
+use Crypt::Util;
 
 my ( $c, $fallback_cipher );
-BEGIN {
 
+BEGIN {
 	$c = Crypt::Util->new;
 
 	$fallback_cipher = eval { $c->fallback_cipher };
@@ -35,22 +35,24 @@ is( $c->process_key("foo"), "foo", "literal key from defaults" );
 
 $c->default_use_literal_key(0);
 
-SKIP: foreach my $mode ( qw/stream block CBC CFB OFB Ctr/ ) {
-	skip "Crypt::$mode not installed ($@)", 1 unless eval { $c->cipher_object( mode => $mode, key => "futz" ) };
+foreach my $mode ( qw/stream block CBC CFB OFB Ctr/ ) {
+	SKIP: {
+		skip "$mode not installed ($@)", 1 unless eval { $c->cipher_object( mode => $mode, key => "futz" ) };
 
-	my $ciphertext = $c->encrypt_string(
-		key    => "moose",
-		string => "dancing",
-		mode   => $mode,
-	);
-
-	is(
-		$c->decrypt_string(
+		my $ciphertext = $c->encrypt_string(
 			key    => "moose",
-			string => $ciphertext,
+			string => "dancing",
 			mode   => $mode,
-		),
-		"dancing",
-		"round trip using $mode",
-	);
+		);
+
+		is(
+			$c->decrypt_string(
+				key    => "moose",
+				string => $ciphertext,
+				mode   => $mode,
+			),
+			"dancing",
+			"round trip using $mode",
+		);
+	}
 }
