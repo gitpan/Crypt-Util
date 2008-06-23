@@ -16,14 +16,14 @@ my $c = Crypt::Util->new;
 
 isa_ok( $c, "Crypt::Util" );
 
-is( $c->default_cipher, undef, "no default cipher" );
-
-my $fallback_cipher = eval { $c->fallback_cipher };
+ok( !$c->has_default_cipher, "no default cipher" );
 
 SKIP: {
-	skip "Couldn't load any cipher", 8 if $@ =~ /^Couldn't load any cipher/;
+	my $fallback_cipher = eval { $c->fallback_cipher };
 
-	ok( !$@, "no unexpected error" );
+	skip "Couldn't load any cipher", 8 unless $fallback_cipher;
+	skip "Couldn't load any mode", 8 unless eval { $c->fallback_mode };
+
 	ok( defined($fallback_cipher), "fallback defined" );
 
 	my $cipher = $c->cipher_object( key => "foo" );
@@ -53,7 +53,7 @@ SKIP: {
 	is( $c->decrypt_string( string => $encoded, decode => 1 ), $c->decrypt_string( string => $binary ), "decoded == binary" );
 }
 
-is( $c->default_digest, undef, "no default digest" );
+ok( !$c->has_default_digest, "no default digest" );
 
 my $fallback_digest = eval { $c->fallback_digest };
 

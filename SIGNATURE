@@ -1,0 +1,48 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.55.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 08ecbb093a819349c3627f6ba91c252ef44efb2c '
+SHA1 e9c0c23dcbc03d27ddfdb7edbfc0cb43561e686f Changes
+SHA1 d704143766a41ab1ea83d6e70cd46f32740227eb MANIFEST
+SHA1 1b3d0bb9d042f254de78745f89810953fd7dad9b MANIFEST.SKIP
+SHA1 ce749c39d48d8ae90cfce8dd4cd63c20a9205776 META.yml
+SHA1 950e970c4e46fdd396319fb18de0dd1359896b91 Makefile.PL
+SHA1 f0577f8f88a6703e9bca2d10196cfd293f3d6f2f inc/Module/Install.pm
+SHA1 5d574849849860b8cf06035cc6f1a306c66cb326 inc/Module/Install/Base.pm
+SHA1 c30f50bc2a1542dff17f84a54d9316f3c3c6299e inc/Module/Install/Can.pm
+SHA1 9b618efcd783f6ed4bab84fa22b31886fcc38d57 inc/Module/Install/Fetch.pm
+SHA1 cd14c8de2a67b0f14df9bc20c27f3edabd359d1b inc/Module/Install/Makefile.pm
+SHA1 a2162aec678d21988fce47ab805cf01773196292 inc/Module/Install/Metadata.pm
+SHA1 4ae5d56e11e640bd9520634dde6d563926f6d98a inc/Module/Install/Win32.pm
+SHA1 587cc94b52b640fe2d4972253b6369aa951e2210 inc/Module/Install/WriteAll.pm
+SHA1 71f4c4b597d0f1f15878f5818a0a22a73440144a lib/Crypt/Util.pm
+SHA1 6e45e5c62fdf0fb40837e062e65e4cc3497949d1 lib/Crypt/Util.pmc
+SHA1 3058e21cfa4fb7bae69256a18be197add0a26a97 lib/Digest/MoreFallbacks.pm
+SHA1 a940c6545a074e1c2df7d3c9c33b3ca02723ec5c lib/Digest/MultiHash.pm
+SHA1 79ef07c9b7580389a5dc9e5ecf5a0c18aaeeb58b t/basic.t
+SHA1 b824203d1c809c52f78649e5ed2c14aa9833ce9e t/digest.t
+SHA1 5caaf82cf60dc2e3dbb49b75d7278f38dfbb4738 t/encoding.t
+SHA1 cd69b1fe06f9759b94895eb3d28084e9795a7c49 t/encrypt.t
+SHA1 e2a1eafec70c6a41551106a97208ee06f2496bcd t/exported.t
+SHA1 9b8429918af821d512626ecac1559d9f108e6a7b t/multihash.t
+SHA1 22c39d4208ddc84253a87c8ccc57da09cfce7e36 t/tamper.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.7 (Darwin)
+
+iD8DBQFIX2Q+VCwRwOvSdBgRAg2sAKCP2w1ewG4VYnSqGCKuAPpD12TkUwCfUh6G
+CuJtPGSItp8+0UcBtcnK1Hw=
+=2TYF
+-----END PGP SIGNATURE-----
