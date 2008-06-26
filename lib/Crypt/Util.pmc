@@ -3,15 +3,15 @@
 #line 1
 BEGIN { use 5.006; local (*F, $/); ($F = __FILE__) =~ s!c$!!; open(F)
 or die "Cannot open $F: $!"; binmode(F, ':crlf'); if (unpack('%32N*',
-$F=readline(*F)) != 0x7DF3AB49) { use Filter::Util::Call; my $f = $F;
+$F=readline(*F)) != 0x4445D04D) { use Filter::Util::Call; my $f = $F;
 filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 #line 1
 # 8667e12ea286715fb3e93c82b3356305890112f1
 
 package Crypt::Util;
-use Moose;
+use Squirrel;
 
-our $VERSION = "0.07";
+our $VERSION = "0.08";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -150,7 +150,7 @@ has disable_fallback => (
 	is  => "rw",
 );
 
-__PACKAGE__->meta->make_immutable;
+__PACKAGE__->meta->make_immutable if __PACKAGE__->meta->can("make_immutable");
 
 {
 	my %fallback_caches;
@@ -836,7 +836,7 @@ sub authenticated_encrypt_string {
 
 # 24b22e09d92227262d2f8edb54dbae1559118a51
 
-		return pack("n/a a*", $nonce, $self->encrypt_string( %params, nonce => $nonce ) );
+		return pack("n/a* a*", $nonce, $self->encrypt_string( %params, nonce => $nonce ) );
 	} else {
 		croak "To use encrypted tamper resistent strings an authenticated encryption mode such as EAX must be selected";
 	}
@@ -848,7 +848,7 @@ sub authenticated_decrypt_string {
 	if ( $self->_authenticated_mode(\%params) ) {
 		$self->_process_params( \%params, qw(string) );
 
-		my ( $nonce, $string ) = unpack("n/a a*", $params{string});
+		my ( $nonce, $string ) = unpack("n/a* a*", $params{string});
 
 		return $self->decrypt_string(
 			fatal => 1,
