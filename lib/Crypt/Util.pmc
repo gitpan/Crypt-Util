@@ -3,7 +3,7 @@
 #line 1
 BEGIN { use 5.006; local (*F, $/); ($F = __FILE__) =~ s!c$!!; open(F)
 or die "Cannot open $F: $!"; binmode(F, ':crlf'); if (unpack('%32N*',
-$F=readline(*F)) != 0x4445D04D) { use Filter::Util::Call; my $f = $F;
+$F=readline(*F)) != 0x05186A0E) { use Filter::Util::Call; my $f = $F;
 filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 #line 1
 # 8667e12ea286715fb3e93c82b3356305890112f1
@@ -11,7 +11,7 @@ filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 package Crypt::Util;
 use Squirrel;
 
-our $VERSION = "0.08";
+our $VERSION = "0.09";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -1784,7 +1784,7 @@ Ann Barcomb
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2006 by Yuval Kogman E<lt>nothingmuch@woobling.orgE<gt>, Ann Barcomb
+Copyright 2006-2008 by Yuval Kogman E<lt>nothingmuch@woobling.orgE<gt>, Ann Barcomb
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
