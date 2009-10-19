@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 package Crypt::Util;
-use Squirrel;
+use Moose;
 
-our $VERSION = "0.09";
+our $VERSION = "0.10";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -1018,9 +1018,9 @@ Crypt::Util - A lightweight Crypt/Digest convenience API
 
 =head1 SYNOPSIS
 
-	use Crypto::Util; # also has a Sub::Exporter to return functions wrapping a default instance
+	use Crypt::Util; # also has a Sub::Exporter to return functions wrapping a default instance
 
-	my $util = Crypto::Util->new;
+	my $util = Crypt::Util->new;
 
 	$util->default_key("my secret");
 

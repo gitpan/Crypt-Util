@@ -1,28 +1,31 @@
---- 
-abstract: A lightweight Crypt/Digest convenience API
-author: 
-  - Yuval Kogman, <nothingmuch@woobling.org>
-build_requires: 
+---
+abstract: 'A lightweight Crypt/Digest convenience API'
+author:
+  - 'Yuval Kogman, <nothingmuch@woobling.org>'
+build_requires:
+  ExtUtils::MakeMaker: 6.42
   Test::Exception: 0
   Test::More: 0
   Test::use::ok: 0
+configure_requires:
+  ExtUtils::MakeMaker: 6.42
 distribution_type: module
-generated_by: Module::Install version 0.70
+generated_by: 'Module::Install version 0.91'
 license: MIT
-meta-spec: 
-  url: http://module-build.sourceforge.net/META-spec-v1.3.html
-  version: 1.3
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
 name: Crypt-Util
-no_index: 
-  directory: 
+no_index:
+  directory:
     - inc
     - t
-recommends: 
+recommends:
   Crypt::Blowfish: 0
   Crypt::CBC: 0
   Crypt::CFB: 0
   Crypt::DES: 0
-  Crypt::EAX: 0
+  Crypt::EAX: 0.04
   Crypt::RC6: 0
   Crypt::RIPEMD160: 0
   Crypt::Rijndael: 0
@@ -36,11 +39,12 @@ recommends:
   MIME::Base64: 0
   MIME::Base64::URLSafe: 0
   URI::Escape: 0
-requires: 
+requires:
   Data::GUID: 0
   Digest: 0
-  Moose: 0.48
+  Moose: 0.92
   Storable: 0
   Sub::Exporter: 0
+  namespace::clean: 0.08
   perl: 5.8.0
-version: 0.07
+version: 0.10

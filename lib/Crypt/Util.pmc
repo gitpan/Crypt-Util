@@ -3,15 +3,15 @@
 #line 1
 BEGIN { use 5.006; local (*F, $/); ($F = __FILE__) =~ s!c$!!; open(F)
 or die "Cannot open $F: $!"; binmode(F, ':crlf'); if (unpack('%32N*',
-$F=readline(*F)) != 0x05186A0E) { use Filter::Util::Call; my $f = $F;
+$F=readline(*F)) != 0x2C91D8AA) { use Filter::Util::Call; my $f = $F;
 filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 #line 1
 # 8667e12ea286715fb3e93c82b3356305890112f1
 
 package Crypt::Util;
-use Squirrel;
+use Moose;
 
-our $VERSION = "0.09";
+our $VERSION = "0.10";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -1108,9 +1108,9 @@ Crypt::Util - A lightweight Crypt/Digest convenience API
 
 =head1 SYNOPSIS
 
-	use Crypto::Util; # also has a Sub::Exporter to return functions wrapping a default instance
+	use Crypt::Util; # also has a Sub::Exporter to return functions wrapping a default instance
 
-	my $util = Crypto::Util->new;
+	my $util = Crypt::Util->new;
 
 	$util->default_key("my secret");
 

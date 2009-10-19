@@ -2,14 +2,13 @@
 
 use strict;
 
-use inc::Module::Install 0.75;
+use inc::Module::Install 0.91;
 
 name 'Crypt-Util';
 
 perl_version '5.008';
 
-requires 'Mouse'                 => "0.04";
-requires 'Squirrel'              => 0;
+requires 'Moose'                 => '0.92';
 requires 'Digest'                => 0;
 requires 'Sub::Exporter'         => 0;
 requires 'Storable'              => 0;
@@ -28,7 +27,7 @@ recommends 'URI::Escape'           => 0;
 recommends 'Crypt::CFB' => 0; # stream ciphers
 recommends 'Crypt::CBC' => 0; # block ciphers
 
-recommends 'Crypt::EAX' => 0; # AEAD mode
+recommends 'Crypt::EAX' => '0.04'; # AEAD mode
 
 recommends 'Crypt::Rijndael' => 0; # AES
 recommends 'Crypt::Serpent'  => 0; # AES finalist
