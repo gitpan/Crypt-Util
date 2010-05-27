@@ -3,7 +3,7 @@
 #line 1
 BEGIN { use 5.006; local (*F, $/); ($F = __FILE__) =~ s!c$!!; open(F)
 or die "Cannot open $F: $!"; binmode(F, ':crlf'); if (unpack('%32N*',
-$F=readline(*F)) != 0x2C91D8AA) { use Filter::Util::Call; my $f = $F;
+$F=readline(*F)) != 0x47C88156) { use Filter::Util::Call; my $f = $F;
 filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 #line 1
 # 8667e12ea286715fb3e93c82b3356305890112f1
@@ -11,7 +11,7 @@ filter_add(sub { filter_del(); 1 while &filter_read; $_ = $f; 1; })}}
 package Crypt::Util;
 use Moose;
 
-our $VERSION = "0.10";
+our $VERSION = "0.11";
 
 use Digest;
 use Digest::MoreFallbacks;
@@ -882,7 +882,7 @@ sub mac_tamper_proof_string {
 	return $self->_pack_hash_and_message( $hash, $string );
 }
 
-sub thaw_tamper_proof {
+sub thaw_tamper_proof_string {
 	my ( $self, %params ) = _args @_, "string";
 
 	my $string = delete $params{string};
@@ -893,6 +893,11 @@ sub thaw_tamper_proof {
 	my $method = "thaw_tamper_proof_string_$type";
 
 	my $packed = $self->$method( %params, string => $message );
+}
+
+sub thaw_tamper_proof {
+	my ( $self, %params ) = _args @_, "string";
+	my $packed = $self->thaw_tamper_proof_string(%params);
 	$self->unpack_data(%params, data => $packed);
 }
 
